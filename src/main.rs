@@ -1,5 +1,6 @@
 use std::fmt;
 use rand::Rng;
+use std::io::{ self, BufRead };
 
 #[derive(Copy,Clone)]
 enum CardValue {
@@ -130,10 +131,11 @@ impl Deck {
 
 impl fmt::Display for Deck {
     fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+        write!( f, "{{" )?;
         for card in self.cards.iter() {
-            write!( f, "{}", card )?;
+            write!( f, "{}, ", card )?;
         }
-
+        write!( f, "}}" )?;
         Ok( () )
     }
 }
@@ -156,9 +158,9 @@ impl Human {
 
 impl fmt::Display for Human {
     fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
-        write!( f, "Id: {}", self.id )?;
-        write!( f, "Deck: {}", self.deck)?;
-        write!( f, "Active: {}", self.active )
+        write!( f, "Id: {}\n", self.id )?;
+        write!( f, "Deck: {}\n", self.deck)?;
+        write!( f, "Active: {}\n", self.active )
     }
 }
 
@@ -184,11 +186,11 @@ impl Robot {
 
 impl fmt::Display for Robot {
     fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
-        write!( f, "Id: {}", self.id )?;
-        write!( f, "Deck: {}", self.deck)?;
-        write!( f, "Reaction Speed Milliseconds: {}", self.reaction_speed_milliseconds )?;
-        write!( f, "Reaction Speed Variance: {}", self.reaction_speed_variance )?;
-        write!( f, "Active: {}", self.active )
+        write!( f, "Id: {}\n", self.id )?;
+        write!( f, "Deck: {}\n", self.deck)?;
+        write!( f, "Reaction Speed Milliseconds: {}\n", self.reaction_speed_milliseconds )?;
+        write!( f, "Reaction Speed Variance: {}\n", self.reaction_speed_variance )?;
+        write!( f, "Active: {}\n", self.active )
     }
 }
 
@@ -209,7 +211,6 @@ impl fmt::Display for PlayerType {
 enum GameState {
     NotStarted,
     Shuffling,
-    Dealing,
     Playing,
     Complete
 }
@@ -219,7 +220,6 @@ impl fmt::Display for GameState {
         match self {
             GameState::NotStarted => write!( f, "Not Started"),
             GameState::Shuffling => write!( f, "Suffling"),
-            GameState::Dealing => write!( f, "Dealing"),
             GameState::Playing => write!( f, "Playing"),
             GameState::Complete => write!( f, "Complete")
         }
@@ -237,18 +237,26 @@ struct Game {
 }
 
 impl Game {
-    fn new( player_count:usize ) -> Game {
-        Game {
+    fn new( ( humans, robots):( usize, usize ) ) -> Game {
+        let mut game = Game {
             turn: 0,
-            player_count,
-            players: Vec::with_capacity( player_count ),
+            player_count: humans + robots,
+            players: Vec::new(),
             table_deck: Deck::new(),
-            id: player_count + 1,
+            id: humans + robots + 1,
             state: GameState::NotStarted
+        };
+        for player_index in 0..robots {
+            game.players.push( PlayerType::Robot{ attributes: Robot::new( player_index, 500, 10 ) } ) 
         }
+        for player_index in 0..humans {
+            game.players.push( PlayerType::Human{ attributes: Human::new( robots + player_index ) } ) 
+        }
+        game
     }
 
-    fn shuffle_cards( &mut self ) {
+    fn shuffle_cards( &mut self ) -> Result< (), () > {
+        self.state = GameState::Shuffling;
         let mut deck_to_shuffle = Deck::new();
 
         let mut card_index:Vec<usize> = Vec::new();
@@ -274,7 +282,7 @@ impl Game {
         for card in deck_to_shuffle.cards.iter_mut() {
             match &mut self.players[turn] {
                 PlayerType::Human{ attributes } => {
-                    panic!( "I CANNOT HANDLE HUMAN INTERACTION!");
+                    attributes.deck.cards.push( *card );
                 },
                 PlayerType::Robot{ attributes } => {
                     attributes.deck.cards.push( *card );
@@ -287,29 +295,89 @@ impl Game {
                 turn = 0;
             }
         }
+        Ok( () )
+    }
+
+    fn play( &mut self ) {
+        let card = match &mut self.players[self.turn] {
+            PlayerType::Human{ ref mut attributes } => {
+                if attributes.active == false {
+                    return;
+                }
+                if attributes.deck.cards.len() > 0 {
+                    Some(attributes.deck.cards.remove( 0 ))
+                } else {
+                    attributes.active = false;
+                    None
+                }
+            },
+            PlayerType::Robot{ ref mut attributes } => {
+                if attributes.active == false {
+                    return;
+                }
+                if attributes.deck.cards.len() > 0 {
+                    Some(attributes.deck.cards.remove( 0 ))
+                } else {
+                    attributes.active = false;
+                    None
+                }
+            }
+        };
+
+        if card.is_some() {
+            self.table_deck.cards.push(card.unwrap());
+        }
+        self.turn += 1;
+        if self.turn >= self.player_count {
+            self.turn = 0;
+        }
+    }
+
+    fn render( &mut self ) {
+        println!( "*****" );
+        println!( "{}", self.table_deck );
     }
 }
 
 impl fmt::Display for Game {
     fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
-        write!( f, "Turn: {}", self.turn );
-        write!( f, "Player Count: {}", self.player_count );
-        write!( f, "ID: {}", self.id );
-        write!( f, "Game State: {}", self.state );
-        write!( f, "Table Deck: {}", self.table_deck );
+        write!( f, "Turn: {}\n", self.turn )?;
+        write!( f, "Player Count: {}\n", self.player_count )?;
+        write!( f, "ID: {}\n", self.id )?;
+        write!( f, "Game State: {}\n", self.state )?;
+        write!( f, "Table Deck: {}\n", self.table_deck )?;
         for player in self.players.iter() {
-            write!( f, "Table Deck: {}", player );
+            write!( f, "Player:\n{}\n", player )?;
         }
         Ok( () )
     }
 }
 
 fn main() {
-    let mut game = Game::new(4);    
+    let mut game = Game::new( (1, 3) );    
 
     println!( "{}", game );
 
-    game.shuffle_cards(); 
+    if game.shuffle_cards().is_err() {
+        println!( "ERROR" );
+        return;
+    }
 
     println!( "{}", game );
+
+    let stdin = io::stdin();
+    let mut done = false;
+
+    while !done {
+        game.play();
+        game.render();
+        let line = stdin.lock().lines().next().expect("there are no lines" ).expect("Nothing to see here...");
+
+        match line.as_str() {
+            "q" => done = true,
+            "p" => println!( "{game}" ),
+            _ => (),
+        }
+    }
+    println!( "ALL DONE" );
 }
