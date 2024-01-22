@@ -1,3 +1,5 @@
+use std::fmt;
+
 enum CardValue {
     Ace,
     Two,
@@ -11,7 +13,27 @@ enum CardValue {
     Ten,
     Jack,
     Queen,
-    Diamond
+    King
+}
+
+impl fmt::Display for CardValue {
+    fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+        match self {
+            CardValue::Ace =>   write!( f, " A" ),
+            CardValue::Two =>   write!( f, " 2" ),
+            CardValue::Three => write!( f, " 3" ),
+            CardValue::Four =>  write!( f, " 4" ),
+            CardValue::Five =>  write!( f, " 5" ),
+            CardValue::Six =>   write!( f, " 6" ),
+            CardValue::Seven => write!( f, " 7" ),
+            CardValue::Eight => write!( f, " 8" ),
+            CardValue::Nine =>  write!( f, " 9" ),
+            CardValue::Ten =>   write!( f, "10" ),
+            CardValue::Jack =>  write!( f, " J" ),
+            CardValue::Queen => write!( f, " Q" ),
+            CardValue::King =>  write!( f, " K" ),
+        }
+    }
 }
 
 enum CardSuite {
@@ -21,9 +43,26 @@ enum CardSuite {
     Heart
 }
 
+impl fmt::Display for CardSuite {
+    fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+        match self {
+            CardSuite::Spade =>   write!( f, "S" ),
+            CardSuite::Club =>    write!( f, "C" ),
+            CardSuite::Diamond => write!( f, "D" ),
+            CardSuite::Heart =>   write!( f, "H" ),
+        }
+    }
+}
+
 struct Card {
     suite: CardSuite,
     value: CardValue
+}
+
+impl fmt::Display for Card {
+    fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+        write!( f, "{}{}", self.value, self.suite)
+    }
 }
 
 struct Deck {
@@ -59,7 +98,7 @@ struct Robot {
     deck: Deck,
     reaction_speed_milliseconds: usize,
     reaction_speed_variance: usize,
-    active: false,
+    active: bool,
 }
 
 impl Robot {
@@ -82,18 +121,24 @@ enum PlayerType {
 
 struct Game {
     turn: usize,
-    players: Vec<PlayerType>
+    players: Vec<PlayerType>,
+    table_deck: Deck,
+    id: usize,
 }
 
 impl Game {
     fn new( player_count:usize ) -> Game {
         Game {
             turn: 0,
-            players: Vec::with_capacity( player_count )
+            players: Vec::with_capacity( player_count ),
+            table_deck: Deck::new(),
+            id: player_count + 1,
         }
     }
 }
 
 fn main() {
+    let mut game = Game::new(4);    
+
 
 }
